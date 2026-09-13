@@ -44,8 +44,10 @@
       <div class="sheet-header"><strong>Rappel d’examen</strong><button class="text-button" id="close-reminder" type="button">Fermer</button></div>
       <label for="reminder-title">Examen</label><input id="reminder-title" placeholder="Ex. Examen de mathématiques" />
       <label for="reminder-date">Date de l’examen</label><input id="reminder-date" type="date" />
+      <label for="reminder-time">Heure du rappel</label><input id="reminder-time" type="time" value="09:00" />
       <label for="reminder-days">Me prévenir combien de jours avant ?</label><input id="reminder-days" type="number" min="0" max="60" value="3" />
       <button class="save-button" id="save-reminder" type="button">Enregistrer le rappel</button>
+      <div id="reminder-list" style="margin-top:16px"></div>
     </section>
 
     <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
@@ -87,9 +89,16 @@
       function openNew(){editing=null;$('#sheet-title').textContent='Nouvel élément';$('#note-text').value='';$('#delete-note').hidden=true;setType('Homework');openSheet()}
       function openEdit(i){editing=i;const a=notes[selected][i];$('#sheet-title').textContent='Modifier l’élément';$('#note-text').value=a.text;$('#delete-note').hidden=false;setType(a.type);openSheet()}
       function renderPicker(){document.querySelectorAll('.year-tabs button').forEach(b=>b.classList.toggle('active',+b.dataset.year===pickerYear));const t=$('#month-buttons');t.innerHTML='';moisCourts.forEach((name,m)=>{const b=document.createElement('button');b.type='button';b.textContent=name;b.classList.toggle('active',view.year===pickerYear&&view.month===m);b.onclick=()=>{view={year:pickerYear,month:m};$('#picker-popover').hidden=true;renderCalendar()};t.append(b)})}
-      const panel=$('#reminder-panel');$('#reminder-button').onclick=()=>panel.hidden=false;$('#close-reminder').onclick=()=>panel.hidden=true;$('#save-reminder').onclick=()=>{const title=$('#reminder-title').value.trim(),date=$('#reminder-date').value,days=+$('#reminder-days').value;if(!title||!date)return;localStorage.setItem('ecole-reminder',JSON.stringify({title,date,days}));panel.hidden=true;alert(`Rappel enregistré : ${days} jour(s) avant ${title}.`)};
+      const panel=$('#reminder-panel');$('#reminder-button').onclick=()=>panel.hidden=false;$('#close-reminder').onclick=()=>panel.hidden=true;$('#save-reminder').onclick=async()=>{const title=$('#reminder-title').value.trim(),date=$('#reminder-date').value,days=+$('#reminder-days').value;if(!title||!date)return;localStorage.setItem('ecole-reminder',JSON.stringify({title,date,days}));const plugin=window.Capacitor?.Plugins?.LocalNotifications;if(plugin){const at=new Date(`${date}T09:00:00`);at.setDate(at.getDate()-days);await plugin.requestPermissions();await plugin.schedule({notifications:[{id:Date.now()%2147483647,title:'ECOLE — rappel',body:`${title} dans ${days} jour(s)`,schedule:{at}}]});}panel.hidden=true;alert(`Rappel enregistré : ${days} jour(s) avant ${title}.`)};
       let touchX=0;const grid=$('#calendar-grid');grid.addEventListener('touchstart',e=>touchX=e.touches[0].clientX,{passive:true});grid.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-touchX;if(Math.abs(dx)<45)return;grid.classList.add(dx<0?'slide-left':'slide-right');$('#month-title').classList.add('animate');setTimeout(()=>{moveMonth(dx<0?1:-1);grid.classList.remove('slide-left','slide-right');$('#month-title').classList.remove('animate')},180)},{passive:true});
       render();
+    </script>
+    <script>
+      const reminderStore='ecole-reminders';
+      const readReminders=()=>JSON.parse(localStorage.getItem(reminderStore)||'[]');
+      function showReminders(){const list=document.querySelector('#reminder-list'),items=readReminders();list.innerHTML=items.length?items.map((r,i)=>`<div class="note-card"><span class="note-text">${r.title}<br><small>${r.date} · ${r.time} · ${r.days} jour(s) avant</small></span><button class="text-button" data-remove="${i}">Supprimer</button></div>`).join(''):'<p style="color:#aeb6c4;font-size:13px">Aucun rappel enregistré.</p>';list.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{const a=readReminders();a.splice(+b.dataset.remove,1);localStorage.setItem(reminderStore,JSON.stringify(a));showReminders()})}
+      document.querySelector('#reminder-button').addEventListener('click',showReminders);
+      document.querySelector('#save-reminder').onclick=async()=>{const title=document.querySelector('#reminder-title').value.trim(),date=document.querySelector('#reminder-date').value,time=document.querySelector('#reminder-time').value,days=+document.querySelector('#reminder-days').value;if(!title||!date||!time)return;const r={title,date,time,days};const all=readReminders();all.push(r);localStorage.setItem(reminderStore,JSON.stringify(all));const plugin=window.Capacitor?.Plugins?.LocalNotifications;if(plugin){const at=new Date(`${date}T${time}:00`);at.setDate(at.getDate()-days);await plugin.requestPermissions();await plugin.schedule({notifications:[{id:Date.now()%2147483647,title:'ECOLE — rappel',body:`${title} dans ${days} jour(s)`,schedule:{at}}]});}showReminders();document.querySelector('#reminder-panel').hidden=true};
     </script>
   </body>
 </html>
