@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       vars:
-        XCODE_WORKSPACE: "App.xcworkspace"
+        XCODE_PROJECT: "App.xcodeproj"
         XCODE_SCHEME: "App"
       xcode: latest
       cocoapods: default
@@ -18,7 +18,7 @@ workflows:
         script: |
           cd "$CM_BUILD_DIR/ios/App"
           xcodebuild \
-            -workspace "$XCODE_WORKSPACE" \
+            -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -configuration Release \
             -sdk iphoneos \
